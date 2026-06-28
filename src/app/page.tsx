@@ -1,63 +1,90 @@
-import Image from "next/image";
+'use client';
+
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
+import { Compass, RotateCcw, Square } from 'lucide-react';
+import { TripForm } from '@/components/TripForm';
+import { PlanView } from '@/components/PlanView';
 
 export default function Home() {
+  const { messages, sendMessage, status, stop, setMessages, error } = useChat({
+    transport: new DefaultChatTransport({ api: '/api/plan' }),
+  });
+
+  const busy = status === 'submitted' || status === 'streaming';
+
+  const plan = (brief: string) => {
+    setMessages([]); // each submission starts a fresh itinerary
+    sendMessage({ text: brief });
+  };
+
+  const reset = () => {
+    stop();
+    setMessages([]);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 py-8 lg:flex-row lg:py-12">
+      {/* Sidebar: brief */}
+      <aside className="w-full shrink-0 lg:sticky lg:top-12 lg:h-fit lg:w-96">
+        <header className="mb-6 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+            <Compass className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              TravelPlan AI
+            </h1>
+            <p className="text-xs text-slate-500">
+              Live web · places · flights · hotels
+            </p>
+          </div>
+        </header>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <TripForm onPlan={plan} busy={busy} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </aside>
+
+      {/* Main: the plan */}
+      <main className="min-h-[70vh] flex-1">
+        <div className="flex min-h-[70vh] flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:p-10">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+              Your itinerary
+            </h2>
+            {(busy || messages.length > 0) && (
+              <div className="flex gap-2">
+                {busy && (
+                  <button
+                    onClick={stop}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                  >
+                    <Square className="h-3 w-3" /> Stop
+                  </button>
+                )}
+                {!busy && messages.length > 0 && (
+                  <button
+                    onClick={reset}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error.message ||
+                'Something went wrong. Check that ANTHROPIC_API_KEY is set on the server.'}
+            </div>
+          )}
+
+          <div className="flex-1">
+            <PlanView messages={messages} busy={busy} />
+          </div>
         </div>
       </main>
     </div>
