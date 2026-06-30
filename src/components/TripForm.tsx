@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { PLANNER_MODELS, DEFAULT_MODEL_ID } from '@/lib/ai/models';
 
 const INTERESTS = [
   'Food & dining',
@@ -31,6 +32,7 @@ export type TripFormValues = {
   pace: (typeof PACES)[number];
   interests: string[];
   notes: string;
+  model: string;
 };
 
 function buildBrief(v: TripFormValues): string {
@@ -55,7 +57,7 @@ export function TripForm({
   onPlan,
   busy,
 }: {
-  onPlan: (brief: string) => void;
+  onPlan: (brief: string, modelId: string) => void;
   busy: boolean;
 }) {
   const [v, setV] = useState<TripFormValues>({
@@ -68,6 +70,7 @@ export function TripForm({
     pace: 'Balanced',
     interests: [],
     notes: '',
+    model: DEFAULT_MODEL_ID,
   });
 
   const set = <K extends keyof TripFormValues>(k: K, val: TripFormValues[K]) =>
@@ -84,7 +87,7 @@ export function TripForm({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!v.destination.trim() || busy) return;
-    onPlan(buildBrief(v));
+    onPlan(buildBrief(v), v.model);
   };
 
   const field =
@@ -156,6 +159,21 @@ export function TripForm({
             ))}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className={label}>Model</label>
+        <select
+          className={field}
+          value={v.model}
+          onChange={(e) => set('model', e.target.value)}
+        >
+          {PLANNER_MODELS.map((m) => (
+            <option key={m.id} value={m.id} disabled={!m.enabled}>
+              {m.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>

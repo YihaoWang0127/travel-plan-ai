@@ -50,7 +50,8 @@ src/
     TripForm.tsx           ← controlled form → serialises into a text brief
     PlanView.tsx           ← renders streamed markdown, skeleton state
   lib/ai/
-    model.ts               ← getPlannerModel() — ALWAYS create per-request (see gotchas)
+    model.ts               ← getPlannerModel(modelId?) — ALWAYS create per-request (see gotchas)
+    models.ts              ← PLANNER_MODELS allowlist + DEFAULT_MODEL_ID; zero deps, client-safe
     prompt.ts              ← SYSTEM_PROMPT constant
     amadeus.ts             ← thin Amadeus REST client
     tools/
@@ -60,9 +61,15 @@ src/
       hotels.ts            ← Amadeus hotel offers (2-step: list then prices)
 .claude/
   settings.json            ← Claude Code project permissions
+  agents/
+    ui-agent.md             ← owns components/, page.tsx, layout.tsx, globals.css
+    ai-agent.md              ← owns api/plan/route.ts, lib/ai/**
+    qa-agent.md               ← typecheck/lint/build, closing pipeline
+    security-agent.md          ← npm audit + secret scan, closing pipeline
   commands/
-    orchestrator.md        ← /orchestrator CI/CD slash command
-AGENTS.md                  ← Next.js version guard (auto-loaded by CLAUDE.md)
+    orchestrator.md        ← /orchestrator router + validation slash command
+AGENTS.md                  ← Next.js 16 version guard (auto-loaded by CLAUDE.md; unrelated to
+                              the .claude/agents/ subagents above — do not confuse the two)
 CLAUDE.md                  ← this file
 ```
 
@@ -79,7 +86,9 @@ GOOGLE_MAPS_API_KEY=        # Optional. Google Cloud → Places API (New)
 AMADEUS_CLIENT_ID=          # Optional. developers.amadeus.com (free test tier)
 AMADEUS_CLIENT_SECRET=      # Optional.
 AMADEUS_ENV=                # Optional. "production" to use live Amadeus host
-TRAVEL_MODEL=               # Optional. Override the Claude model (default: claude-opus-4-8)
+TRAVEL_MODEL=               # Optional. Server-side default model when a request omits modelId
+                             # (default: claude-sonnet-4-6). Must resolve to an `enabled: true`
+                             # entry in PLANNER_MODELS (lib/ai/models.ts) or it's ignored.
 ```
 
 ---
@@ -106,9 +115,22 @@ gates.
 ### Per-request model initialisation (`model.ts`)
 **Do not** export a module-level `PLANNER_MODEL` constant. In Next.js 16 / Turbopack,
 module-level code can be evaluated in a static context where environment variables are not fully
-populated. Always call `getPlannerModel()` inside the route handler so `process.env.TRAVEL_MODEL`
-is read at request time. The function also double-guards with a `|| DEFAULT_MODEL` to prevent
-an empty string from reaching the Anthropic API (which rejects it with a 400).
+populated. Always call `getPlannerModel(modelId?)` inside the route handler so
+`process.env.TRAVEL_MODEL` is read at request time. The function also double-guards with a
+`|| DEFAULT_MODEL_ID` to prevent an empty string from reaching the Anthropic API (which rejects
+it with a 400).
+
+### Per-trip model selection (`models.ts` + `modelId`)
+`TripForm` lets the user pick a model per trip. Each `PLANNER_MODELS` entry has an `enabled`
+flag — only `enabled: true` models are selectable in the UI (disabled ones render as a greyed-out
+`<option disabled>`) **and** accepted server-side; `isAllowedModelId()` in `model.ts` checks both
+the id and the flag, so a disabled model can't be reached even via a direct API request, not just
+hidden in the UI. Currently only Sonnet 4.6 (`claude-sonnet-4-6`) is enabled; Opus 4.8 is listed
+but disabled pending cost review — flip its `enabled` flag in `models.ts` to turn it back on. Sent
+to `/api/plan` as `modelId` in the request body. Resolution order: valid `modelId` → valid
+`TRAVEL_MODEL` env var →
+`DEFAULT_MODEL_ID`. `models.ts` has zero dependencies (no `@ai-sdk/anthropic` import) so it's
+safe for `TripForm.tsx` (a client component) to import directly without bundling the provider.
 
 ### Tools degrade gracefully
 Every tool returns `{ configured: false, note: "..." }` when its API key is absent. Claude reads
@@ -158,11 +180,22 @@ Amadeus does not offer a single "search by city + get prices" endpoint. `hotels.
 
 ---
 
-## CI/CD with `/orchestrator`
+## Agent System
 
-Run `/orchestrator` in Claude Code to execute the full pipeline: type-check → build →
-security scan → (optional) Vercel deploy.  See `.claude/commands/orchestrator.md` for the
-complete spec and subagent definitions.
+Specialist subagents are defined in `.claude/agents/` (`ui-agent`, `ai-agent`, `qa-agent`,
+`security-agent`); the router lives in `.claude/commands/orchestrator.md`. Use `/orchestrator
+<task>` for feature work or fixes — it owns the Agent Roster, routing table, wave ordering, and
+closing validation pipeline. See `.claude/commands/orchestrator.md` for all of that; don't
+duplicate those tables here.
+
+**When to use `/orchestrator` vs. direct chat:** small, single-file edits you're already discussing
+in chat can be made directly — there's no hard "every edit needs the router" rule here (this is a
+single small Next.js app, not a multi-page/multi-stack project). Reach for `/orchestrator` when a
+task spans both `ui-agent` and `ai-agent` territory, or when you want the typecheck/lint/build +
+security closing pipeline run automatically after the change.
+
+This repo has no CI configured yet, so `/orchestrator` never opens PRs or auto-pushes — it stops
+after validation and reports; git operations stay with the user.
 
 ---
 
