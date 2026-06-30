@@ -13,9 +13,9 @@ export default function Home() {
 
   const busy = status === 'submitted' || status === 'streaming';
 
-  const plan = (brief: string) => {
+  const plan = (brief: string, modelId: string) => {
     setMessages([]); // each submission starts a fresh itinerary
-    sendMessage({ text: brief });
+    sendMessage({ text: brief }, { body: { modelId } });
   };
 
   const reset = () => {
