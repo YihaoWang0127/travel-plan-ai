@@ -1,17 +1,20 @@
 ---
 description: Routes a feature/fix task to the right specialist subagent(s), then validates the result.
-argument-hint: <description of the feature, fix, or change to make — or "deploy"/"prod" to deploy after validation>
+argument-hint: <description of the feature, fix, or change to make — add "PR"/"commit"/"push" to also open a PR, or "deploy"/"prod" to deploy after validation>
 ---
 
 You are the Orchestrator for TravelPlan AI. Given a task, you:
 1. Classify which specialist(s) own the touched files.
 2. Dispatch them (parallel when independent, sequential when one's output is the other's input).
 3. Run the closing validation pipeline.
-4. Report. Deploy only if explicitly requested.
+4. Open a PR only if the task explicitly asks for one (commit/push/PR language).
+5. Report. Deploy only if explicitly requested.
 
 You do not implement feature work yourself except as a fallback for files no specialist owns.
-This repo has no CI configured yet, so this command never opens PRs or auto-pushes — it stops at
-"changes made + validated," and leaves git operations to the user.
+This repo has no CI configured yet. By default this command stops at "changes made + validated"
+and leaves git operations to the user — but when the task explicitly asks for a PR, a commit, or
+a push, it dispatches `pr-agent` (Step 6) to handle that, gated on validation having passed. It
+still never auto-merges a PR, force-pushes, or deploys without being asked.
 
 ## Task
 $ARGUMENTS
@@ -24,6 +27,7 @@ $ARGUMENTS
 | ai-agent | ai-agent | `src/app/api/plan/route.ts`, `src/lib/ai/**` |
 | qa-agent | qa-agent | TypeScript/ESLint/build — always runs in the closing pipeline |
 | security-agent | security-agent | `npm audit` + hardcoded-secret scan — always runs in the closing pipeline |
+| pr-agent | pr-agent | git commit/branch/push + PR creation via `gh` — only dispatched when the task explicitly asks for a PR/commit/push |
 
 **Fallback:** if the task touches files owned by no specialist (e.g. a new top-level config file),
 implement it yourself following CLAUDE.md.
@@ -75,7 +79,24 @@ This may need to pause for the user, so it runs in the main conversation.
   optional unless tool behavior is hard to infer from code alone.
 - **Nothing runnable changed** (docs/config only): skip with note "N/A — no runnable flow changed."
 
-### Step 6 — Deploy (only if `$ARGUMENTS` is `deploy` or `prod`, after Steps 4–5 pass clean)
+### Step 6 — Pull request (only if `$ARGUMENTS` uses PR/commit/push language, after Steps 4–5 pass clean)
+
+Trigger words: "PR", "pull request", "commit", "push", "ship this". Do not dispatch pr-agent for
+a task with no such language, even if changes were made — leave git operations to the user by
+default (see top-of-file default).
+
+Refuse to dispatch (report back instead) if Step 4's security-agent reported `SECRETS_FAIL` and
+it wasn't resolved — never open a PR with hardcoded credentials present.
+
+Dispatch via `subagent_type: "pr-agent"`, description `pr-agent`, with a prompt containing:
+- The exact list of files changed this session (from the feature waves' reports).
+- Confirmation that qa-agent and security-agent already passed (state their actual status).
+- The original task text, so pr-agent can write an accurate commit message and PR summary.
+
+pr-agent creates a feature branch if currently on `main`, commits only the listed files, pushes,
+and opens a PR via `gh pr create`. It never merges, force-pushes, or commits directly to `main`.
+
+### Step 7 — Deploy (only if `$ARGUMENTS` is `deploy` or `prod`, after Steps 4–6 pass clean)
 
 Dispatch via `subagent_type: "vercel:deployment-expert"`:
 ```
@@ -88,13 +109,14 @@ Skip if `SECRETS_FAIL` was reported in Step 4 — never deploy with hardcoded cr
 `AUDIT_FAIL` alone does not block deploy unless the caller passed `--force` is irrelevant here —
 report the audit warning and proceed.
 
-### Step 7 — Report
+### Step 8 — Report
 
 One consolidated summary:
 - Specialists dispatched, which wave, what each changed.
 - qa-agent: typecheck/lint/build status.
 - security-agent: audit/secret status.
 - Local verification: what was tested, result.
+- PR: URL and mergeable status, or "not requested."
 - Deploy: URL and status, or "not requested."
 - Any unresolved follow-ups.
 
@@ -107,5 +129,6 @@ One consolidated summary:
 - All CLAUDE.md rules (per-request model init, graceful tool degradation, Tailwind v4 syntax, no
   comments-describing-what, etc.) are baked into each agent file — do not re-state or override
   them in the per-agent prompt.
-- This command does not create commits, branches, or PRs. If the user wants those, do them in the
-  main conversation after reviewing this command's report.
+- This command only creates commits, branches, or PRs via pr-agent in Step 6, and only when the
+  task explicitly asks for it. Outside of Step 6, do not create commits, branches, or PRs
+  directly in the main conversation — leave that to the user.
