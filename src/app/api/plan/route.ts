@@ -19,11 +19,11 @@ export async function POST(req: Request) {
     );
   }
 
-  const { messages, modelId }: { messages: UIMessage[]; modelId?: string } =
+  const { messages, model }: { messages: UIMessage[]; model?: string } =
     await req.json();
 
   const result = streamText({
-    model: getPlannerModel(modelId),
+    model: getPlannerModel(model),
     system: SYSTEM_PROMPT,
     messages: await convertToModelMessages(messages),
     tools: plannerTools,

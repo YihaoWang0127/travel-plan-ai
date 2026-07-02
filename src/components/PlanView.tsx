@@ -24,7 +24,7 @@ function ActivityChip({ name, done }: { name: string; done: boolean }) {
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
         done
           ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-          : 'border-indigo-200 bg-indigo-50 text-indigo-700'
+          : 'border-gold/40 bg-gold/10 text-gold-dark'
       }`}
     >
       {done ? <Icon className="h-3 w-3" /> : <Loader2 className="h-3 w-3 animate-spin" />}
@@ -45,8 +45,8 @@ export function PlanView({
 
   if (assistantMessages.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center px-8 text-center text-slate-400">
-        <Map className="mb-4 h-12 w-12 text-slate-300" />
+      <div className="flex h-full flex-col items-center justify-center px-8 text-center text-navy/40">
+        <Map className="mb-4 h-12 w-12 text-navy/20" />
         <p className="max-w-sm text-sm">
           Fill in your trip brief and TravelPlan AI will research live flights,
           hotels, places and the web to craft a detailed day-by-day itinerary.
@@ -66,7 +66,7 @@ export function PlanView({
             blocks.push(
               <article
                 key={`t-${i}`}
-                className="prose prose-slate prose-headings:scroll-mt-20 prose-h1:text-2xl prose-h2:mt-8 prose-h2:border-t prose-h2:border-slate-100 prose-h2:pt-6 prose-table:text-sm prose-a:text-indigo-600 max-w-none"
+                className="prose prose-slate prose-headings:scroll-mt-20 prose-h1:font-serif prose-h1:text-2xl prose-h2:mt-8 prose-h2:rounded-xl prose-h2:border prose-h2:border-navy/10 prose-h2:bg-cream/60 prose-h2:px-4 prose-h2:py-3 prose-h2:text-sm prose-h2:font-semibold prose-h2:uppercase prose-h2:tracking-widest prose-h2:text-navy prose-h2:border-t-2 prose-h2:border-t-gold prose-table:text-sm prose-a:text-gold-dark max-w-none"
               >
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {part.text}
@@ -92,7 +92,7 @@ export function PlanView({
       })}
 
       {busy && (
-        <div className="flex items-center gap-2 text-sm text-slate-400">
+        <div className="flex items-center gap-2 text-sm text-navy/40">
           <Loader2 className="h-4 w-4 animate-spin" /> Researching and writing your plan…
         </div>
       )}

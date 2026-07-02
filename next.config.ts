@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Hide the dev-mode route indicator badge (bottom-left "N" button).
+  devIndicators: false,
 };
 
 export default nextConfig;

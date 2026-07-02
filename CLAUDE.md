@@ -50,8 +50,8 @@ src/
     TripForm.tsx           ← controlled form → serialises into a text brief
     PlanView.tsx           ← renders streamed markdown, skeleton state
   lib/ai/
-    model.ts               ← getPlannerModel(modelId?) — ALWAYS create per-request (see gotchas)
-    models.ts              ← PLANNER_MODELS allowlist + DEFAULT_MODEL_ID; zero deps, client-safe
+    model.ts               ← getPlannerModel(requestedModel?) — ALWAYS create per-request (see gotchas)
+    models.ts              ← MODEL_OPTIONS allowlist + DEFAULT_MODEL_ID; zero deps, client-safe
     prompt.ts              ← SYSTEM_PROMPT constant
     amadeus.ts             ← thin Amadeus REST client
     tools/
@@ -86,9 +86,9 @@ GOOGLE_MAPS_API_KEY=        # Optional. Google Cloud → Places API (New)
 AMADEUS_CLIENT_ID=          # Optional. developers.amadeus.com (free test tier)
 AMADEUS_CLIENT_SECRET=      # Optional.
 AMADEUS_ENV=                # Optional. "production" to use live Amadeus host
-TRAVEL_MODEL=               # Optional. Server-side default model when a request omits modelId
-                             # (default: claude-sonnet-4-6). Must resolve to an `enabled: true`
-                             # entry in PLANNER_MODELS (lib/ai/models.ts) or it's ignored.
+TRAVEL_MODEL=               # Optional. Server-side default model when a request omits `model`
+                             # (default: claude-haiku-4-5). Must be an *enabled* entry in
+                             # MODEL_OPTIONS (lib/ai/models.ts) or it's ignored.
 ```
 
 ---
@@ -108,6 +108,11 @@ The only script in use:
 There is no test suite yet. TypeScript (`tsc --noEmit`) and the build are the primary correctness
 gates.
 
+**Keep `npm run dev` running across a work session.** Turbopack Fast Refresh applies most edits
+live — don't stop/restart the dev server after every file change just to "test" it; leave it up
+so changes are visible in real time. Only restart when env vars change, a new dependency is
+installed, or the server itself has crashed/hung.
+
 ---
 
 ## Architecture decisions
@@ -115,22 +120,23 @@ gates.
 ### Per-request model initialisation (`model.ts`)
 **Do not** export a module-level `PLANNER_MODEL` constant. In Next.js 16 / Turbopack,
 module-level code can be evaluated in a static context where environment variables are not fully
-populated. Always call `getPlannerModel(modelId?)` inside the route handler so
+populated. Always call `getPlannerModel(requestedModel?)` inside the route handler so
 `process.env.TRAVEL_MODEL` is read at request time. The function also double-guards with a
 `|| DEFAULT_MODEL_ID` to prevent an empty string from reaching the Anthropic API (which rejects
 it with a 400).
 
-### Per-trip model selection (`models.ts` + `modelId`)
-`TripForm` lets the user pick a model per trip. Each `PLANNER_MODELS` entry has an `enabled`
-flag — only `enabled: true` models are selectable in the UI (disabled ones render as a greyed-out
-`<option disabled>`) **and** accepted server-side; `isAllowedModelId()` in `model.ts` checks both
-the id and the flag, so a disabled model can't be reached even via a direct API request, not just
-hidden in the UI. Currently only Sonnet 4.6 (`claude-sonnet-4-6`) is enabled; Opus 4.8 is listed
-but disabled pending cost review — flip its `enabled` flag in `models.ts` to turn it back on. Sent
-to `/api/plan` as `modelId` in the request body. Resolution order: valid `modelId` → valid
-`TRAVEL_MODEL` env var →
-`DEFAULT_MODEL_ID`. `models.ts` has zero dependencies (no `@ai-sdk/anthropic` import) so it's
-safe for `TripForm.tsx` (a client component) to import directly without bundling the provider.
+### Per-trip model selection (`models.ts` + `model`)
+`TripForm` lets the user pick a model per trip via a segmented-pill control (Opus 4.8 / Sonnet 5 /
+Haiku 4.5 — `MODEL_OPTIONS` in `models.ts`). Each entry carries an `enabled` flag; only Haiku 4.5
+is currently enabled — Opus 4.8 and Sonnet 5 render as disabled pills ("Soon") pending cost
+review, matching upstream policy. The selection is sent to `/api/plan` as `model` in the request
+body via `sendMessage`'s per-request `body` option; `isAllowedModelId()` in `model.ts` validates
+it against only the *enabled* subset of `MODEL_OPTIONS` server-side before it ever reaches
+`anthropic()`, so neither an arbitrary string nor a disabled model ID can reach the Anthropic API.
+Resolution order: valid (enabled) `model` from the client → valid (enabled) `TRAVEL_MODEL` env
+var → `DEFAULT_MODEL_ID` (`claude-haiku-4-5`). `models.ts` has zero dependencies (no
+`@ai-sdk/anthropic` import) so it's safe for `TripForm.tsx` (a client component) to import
+directly without bundling the provider.
 
 ### Tools degrade gracefully
 Every tool returns `{ configured: false, note: "..." }` when its API key is absent. Claude reads
