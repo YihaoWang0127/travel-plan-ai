@@ -234,15 +234,23 @@ export function TripForm({
             <button
               type="button"
               key={m.id}
-              onClick={() => set('model', m.id)}
-              title={m.description}
+              disabled={!m.enabled}
+              onClick={() => m.enabled && set('model', m.id)}
+              title={m.enabled ? m.description : `${m.description} — coming soon`}
               className={`flex-1 rounded-md border px-3 py-2 text-sm transition ${
-                v.model === m.id
-                  ? 'border-gold bg-gold font-medium text-navy'
-                  : 'border-white/15 bg-transparent text-cream/70 hover:border-white/30'
+                !m.enabled
+                  ? 'cursor-not-allowed border-white/10 bg-transparent text-cream/25'
+                  : v.model === m.id
+                    ? 'border-gold bg-gold font-medium text-navy'
+                    : 'border-white/15 bg-transparent text-cream/70 hover:border-white/30'
               }`}
             >
               {m.label}
+              {!m.enabled && (
+                <span className="ml-1 text-[9px] uppercase tracking-wider">
+                  Soon
+                </span>
+              )}
             </button>
           ))}
         </div>

@@ -7,8 +7,11 @@ import { DEFAULT_MODEL_ID, isAllowedModelId } from './models';
 // the same allowlist the UI offers so an arbitrary string can't reach the
 // Anthropic API. A validated selection takes priority over the server default.
 export function getPlannerModel(requestedModel?: string) {
+  const envModel = process.env.TRAVEL_MODEL?.trim();
   const id = isAllowedModelId(requestedModel)
     ? requestedModel
-    : process.env.TRAVEL_MODEL?.trim() || DEFAULT_MODEL_ID;
+    : isAllowedModelId(envModel)
+      ? envModel
+      : DEFAULT_MODEL_ID;
   return anthropic(id || DEFAULT_MODEL_ID);
 }

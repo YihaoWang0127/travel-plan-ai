@@ -87,8 +87,8 @@ AMADEUS_CLIENT_ID=          # Optional. developers.amadeus.com (free test tier)
 AMADEUS_CLIENT_SECRET=      # Optional.
 AMADEUS_ENV=                # Optional. "production" to use live Amadeus host
 TRAVEL_MODEL=               # Optional. Server-side default model when a request omits `model`
-                             # (default: claude-opus-4-8). Must be one of MODEL_OPTIONS
-                             # (lib/ai/models.ts) or it's ignored.
+                             # (default: claude-haiku-4-5). Must be an *enabled* entry in
+                             # MODEL_OPTIONS (lib/ai/models.ts) or it's ignored.
 ```
 
 ---
@@ -127,13 +127,16 @@ it with a 400).
 
 ### Per-trip model selection (`models.ts` + `model`)
 `TripForm` lets the user pick a model per trip via a segmented-pill control (Opus 4.8 / Sonnet 5 /
-Haiku 4.5, all enabled — `MODEL_OPTIONS` in `models.ts`). The selection is sent to `/api/plan` as
-`model` in the request body via `sendMessage`'s per-request `body` option; `isAllowedModelId()` in
-`model.ts` validates it against the same `MODEL_OPTIONS` list server-side before it ever reaches
-`anthropic()`, so an arbitrary string can't reach the Anthropic API. Resolution order: valid
-`model` from the client → valid `TRAVEL_MODEL` env var → `DEFAULT_MODEL_ID`. `models.ts` has zero
-dependencies (no `@ai-sdk/anthropic` import) so it's safe for `TripForm.tsx` (a client component)
-to import directly without bundling the provider.
+Haiku 4.5 — `MODEL_OPTIONS` in `models.ts`). Each entry carries an `enabled` flag; only Haiku 4.5
+is currently enabled — Opus 4.8 and Sonnet 5 render as disabled pills ("Soon") pending cost
+review, matching upstream policy. The selection is sent to `/api/plan` as `model` in the request
+body via `sendMessage`'s per-request `body` option; `isAllowedModelId()` in `model.ts` validates
+it against only the *enabled* subset of `MODEL_OPTIONS` server-side before it ever reaches
+`anthropic()`, so neither an arbitrary string nor a disabled model ID can reach the Anthropic API.
+Resolution order: valid (enabled) `model` from the client → valid (enabled) `TRAVEL_MODEL` env
+var → `DEFAULT_MODEL_ID` (`claude-haiku-4-5`). `models.ts` has zero dependencies (no
+`@ai-sdk/anthropic` import) so it's safe for `TripForm.tsx` (a client component) to import
+directly without bundling the provider.
 
 ### Tools degrade gracefully
 Every tool returns `{ configured: false, note: "..." }` when its API key is absent. Claude reads
