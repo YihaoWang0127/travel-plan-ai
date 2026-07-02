@@ -189,10 +189,10 @@ Amadeus does not offer a single "search by city + get prices" endpoint. `hotels.
 ## Agent System
 
 Specialist subagents are defined in `.claude/agents/` (`ui-agent`, `ai-agent`, `qa-agent`,
-`security-agent`); the router lives in `.claude/commands/orchestrator.md`. Use `/orchestrator
-<task>` for feature work or fixes — it owns the Agent Roster, routing table, wave ordering, and
-closing validation pipeline. See `.claude/commands/orchestrator.md` for all of that; don't
-duplicate those tables here.
+`security-agent`, `pr-agent`); the router lives in `.claude/commands/orchestrator.md`. Use
+`/orchestrator <task>` for feature work or fixes — it owns the Agent Roster, routing table, wave
+ordering, and closing validation pipeline. See `.claude/commands/orchestrator.md` for all of
+that; don't duplicate those tables here.
 
 **When to use `/orchestrator` vs. direct chat:** small, single-file edits you're already discussing
 in chat can be made directly — there's no hard "every edit needs the router" rule here (this is a
@@ -200,8 +200,10 @@ single small Next.js app, not a multi-page/multi-stack project). Reach for `/orc
 task spans both `ui-agent` and `ai-agent` territory, or when you want the typecheck/lint/build +
 security closing pipeline run automatically after the change.
 
-This repo has no CI configured yet, so `/orchestrator` never opens PRs or auto-pushes — it stops
-after validation and reports; git operations stay with the user.
+This repo has no CI configured yet. By default `/orchestrator` stops after validation and
+reports — git operations stay with the user. If the task explicitly asks for a PR/commit/push,
+it dispatches `pr-agent` to handle that (gated on validation passing, never auto-merges or
+force-pushes).
 
 ---
 
