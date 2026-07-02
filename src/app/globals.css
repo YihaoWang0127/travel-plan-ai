@@ -2,15 +2,29 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f7f2e7;
+  --foreground: #1b2233;
+
+  --color-navy: #1b2233;
+  --color-navy-light: #262f47;
+  --color-cream: #f7f2e7;
+  --color-cream-dim: #efe7d6;
+  --color-gold: #c9a15a;
+  --color-gold-dark: #a9803e;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-navy: var(--color-navy);
+  --color-navy-light: var(--color-navy-light);
+  --color-cream: var(--color-cream);
+  --color-cream-dim: var(--color-cream-dim);
+  --color-gold: var(--color-gold);
+  --color-gold-dark: var(--color-gold-dark);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-playfair);
 }
 
 body {

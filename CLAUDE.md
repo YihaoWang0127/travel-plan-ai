@@ -99,6 +99,11 @@ The only script in use:
 There is no test suite yet. TypeScript (`tsc --noEmit`) and the build are the primary correctness
 gates.
 
+**Keep `npm run dev` running across a work session.** Turbopack Fast Refresh applies most edits
+live — don't stop/restart the dev server after every file change just to "test" it; leave it up
+so changes are visible in real time. Only restart when env vars change, a new dependency is
+installed, or the server itself has crashed/hung.
+
 ---
 
 ## Architecture decisions
